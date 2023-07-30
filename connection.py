@@ -1,21 +1,25 @@
-import connection as cnn
+import socket
 
-SERVER_HOST = "127.0.0.1"
-SERVER_PORT = 42069
+def connect(host : str, port : int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((host, port))
+    return sock
 
-if __name__ == "__main__":
-    sock = cnn.listen(SERVER_HOST, SERVER_PORT)
+def listen(host : str, port : int):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind((host, port))
+    sock.listen()
+    return sock
 
-    while True:
-        conn, _ = sock.accept()
-        mode = cnn.recvmsg(conn)
-        if mode == "host":
-            print("Host connected")
-        elif mode == "client":
-            print("Client connected")
-        else:
-            print("Invalid mode")
-            cnn.close(conn)
-            continue
-        
-        cnn.sendmsg(conn, "ready")
+def close(sock):
+    sock.close()
+
+def sendmsg(sock, msg : str):
+    msg = msg.encode(encoding="utf-8")
+    msg = len(msg).to_bytes(4, byteorder="big") + msg
+    sock.sendall(msg)
+
+def recvmsg(sock):
+    msglen = int.from_bytes(sock.recv(4), byteorder="big")
+    msg = sock.recv(msglen).decode(encoding="utf-8")
+    return msg
