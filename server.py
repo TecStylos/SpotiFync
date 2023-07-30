@@ -8,6 +8,20 @@ lock = threading.Lock()
 HOST_SOCK = []
 CLIENT_SOCKS = []
 
+def isSocketClosed(sock : cnn.socket):
+    try:
+        data = sock.recv(16, cnn.socket.MSG_DONTWAIT | cnn.socket.MSG_PEEK)
+        if len(data) == 0:
+            return True
+    except BlockingIOError:
+        return False
+    except ConnectionResetError:
+        return True
+    except Exception as e:
+        print("Unexpected exception when checking if socket is closed: " + str(e))
+        return False
+    return False
+
 def runHostThread():
     with lock:
         host = HOST_SOCK[0]
@@ -16,6 +30,10 @@ def runHostThread():
         try:
             msg = cnn.recvmsg(host)
         except:
+            print("Host disconnected")
+            break
+
+        if isSocketClosed(host):
             print("Host disconnected")
             break
 
@@ -31,12 +49,17 @@ def runHostThread():
 
     with lock:
         HOST_SOCK.pop()
+    cnn.close(host)
 
 def runClientThread(sock : cnn.socket):
     while True:
         try:
             msg = cnn.recvmsg(sock)
         except:
+            print("Client disconnected")
+            break
+
+        if isSocketClosed(sock):
             print("Client disconnected")
             break
 
@@ -48,8 +71,6 @@ def runClientThread(sock : cnn.socket):
                 print("Host disconnected")
                 cnn.close(HOST_SOCK[0])
                 HOST_SOCK.pop()
-                cnn.close(sock)
-                break
 
 if __name__ == "__main__":
     while True:
@@ -82,12 +103,14 @@ if __name__ == "__main__":
                         CLIENT_SOCKS.append(conn)
                         cnn.sendmsg(conn, "ready")
                         threading.Thread(target=runClientThread, args=(conn,)).start()
+                elif mode == "reset":
+                    raise Exception("Resetting server...")
                 else:
                     print("Invalid mode")
                     cnn.close(conn)
                     continue
-        except:
-            print("Server crashed")
+        except Exception as e:
+            print("Server crashed:" + str(e))
             print("Restarting...")
             cnn.close(sock)
             
