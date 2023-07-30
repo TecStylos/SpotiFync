@@ -110,14 +110,10 @@ def runClient(spotify, sock):
     while True:
         cmd = cnn.recvmsg(sock)
 
-        playing = False
-
         if cmd == "playback_info":
             play_state = cnn.recvmsg(sock)
             if play_state == "is_paused":
-                if playing:
-                    spotify.pause_playback()
-                    playing = False
+                spotify.pause_playback()
                 continue
             elif play_state == "is_playing":
                 pass
@@ -132,9 +128,9 @@ def runClient(spotify, sock):
                 myPositionMs = current_playback["progress_ms"]
                 myTimestamp = current_playback["timestamp"]
                 predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
-                if not playing:
+                
+                if not current_playback["is_playing"]:
                     print("Resuming playback...")
-                    playing = True
                 elif myURI != hostURI:
                     print("Switching tracks...")
                 elif abs(myPositionMs - predictedPositionMs) > 3000:
