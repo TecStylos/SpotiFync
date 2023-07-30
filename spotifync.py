@@ -38,7 +38,7 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
             cnn.sendmsg(sock, "playback_info")
             cnn.sendmsg(sock, current_playing["item"]["uri"])
             cnn.sendmsg(sock, str(current_playing["progress_ms"]))
-            cnn.sendmsg(sock, current_playing["timestamp"])
+            cnn.sendmsg(sock, str(current_playing["timestamp"]))
 
         time.sleep(1)
 
