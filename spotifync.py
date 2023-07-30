@@ -73,7 +73,7 @@ def runClient(spotify, sock):
                 myPositionMs = current_playback["progress_ms"]
                 myTimestamp = current_playback["timestamp"]
                 predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
-                if myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 2500:
+                if myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 3000:
                     print("Already playing in sync")
                     continue
 
