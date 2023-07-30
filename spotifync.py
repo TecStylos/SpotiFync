@@ -55,8 +55,8 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
 
         with lock:
             if not queue.empty():
-                print("Received command")
                 cmd = queue.get()
+                print("Received command '" + cmd + "'")
             else:
                 cmd = None
 
@@ -116,7 +116,7 @@ def runClient(spotify, sock):
             current_playback = spotify.current_playback()
 
             if play_state == "is_paused":
-                
+
                 if current_playback is not None and current_playback["is_playing"]:
                     spotify.pause_playback()
 
@@ -136,7 +136,7 @@ def runClient(spotify, sock):
                         print("Resuming playback...")
                     elif myURI != hostURI:
                         print("Switching tracks...")
-                    elif abs(myPositionMs - predictedPositionMs) > 3000:
+                    elif abs(myPositionMs - predictedPositionMs) > 5000:
                         print("Time difference: " + str(myPositionMs - predictedPositionMs) + "ms")
                         print("Seeking...")
                     else:
