@@ -64,11 +64,8 @@ def runClient(spotify, sock):
             print("DONE")
 
             hostURI = cnn.recvmsg(sock)
-            print("Host URI:", hostURI)
             hostPositionMs = int(cnn.recvmsg(sock))
-            print("Host position:", hostPositionMs)
             hostTimestamp = int(cnn.recvmsg(sock))
-            print("Host timestamp:", hostTimestamp)
             
             current_playback = spotify.current_playback()
             if current_playback is not None:
@@ -76,13 +73,13 @@ def runClient(spotify, sock):
                 myPositionMs = current_playback["progress_ms"]
                 myTimestamp = current_playback["timestamp"]
                 predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
-                if myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 1000:
+                if myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 2500:
                     print("Already playing in sync")
                     continue
 
-            print("Resyncing playback... ", end="")
-            spotify.start_playback(uris=[hostURI], position_ms=hostPositionMs + (getCurrentTimestamp() - hostTimestamp))
-            print("DONE")
+                print("Resyncing playback... ", end="")
+                spotify.start_playback(uris=[hostURI], position_ms=predictedPositionMs)
+                print("DONE")
         else:
             print("Invalid command")
 
