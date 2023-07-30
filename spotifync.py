@@ -159,8 +159,8 @@ if __name__ == "__main__":
 
     mode = ""
     while mode == "":
-        mode = input("Enter mode (host/client): ").lower()
-        if mode not in ("host", "client"):
+        mode = input("Enter mode (host/client/reset): ").lower()
+        if mode not in ("host", "client", "reset"):
             mode = ""
             print("Invalid mode, try again.")
 
@@ -168,3 +168,7 @@ if __name__ == "__main__":
         runHost(spotify, sock)
     elif mode == "client":
         runClient(spotify, sock)
+    elif mode == "reset":
+        cnn.sendmsg(sock, "reset")
+        cnn.close(sock)
+        print("Reset server.")
