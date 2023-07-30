@@ -4,14 +4,15 @@ import threading
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 42069
 
-HOST_SOCK
+HOST_SOCK = []
 CLIENT_SOCKS = []
 
 def runHostThread():
+    sock = HOST_SOCK[0]
     while True:
         try:
             print("Waiting for message... ")
-            msg = cnn.recvmsg(HOST_SOCK)
+            msg = cnn.recvmsg(sock)
         except:
             print("Host disconnected")
             break
@@ -25,7 +26,7 @@ def runHostThread():
                 cnn.close(sock)
                 CLIENT_SOCKS.remove(sock)
 
-    HOST_SOCK = None
+    HOST_SOCK.pop()
 
 if __name__ == "__main__":
     print("Starting server...")
@@ -40,14 +41,13 @@ if __name__ == "__main__":
         print("Waiting for connection mode...")
         mode = cnn.recvmsg(conn)
         if mode == "host":
-            global HOST_SOCK
-            if HOST_SOCK != None:
+            if len(HOST_SOCK) > 0:
                 print("Duplicate host connected...")
                 cnn.sendmsg(conn, "nohostavail")
                 cnn.close(conn)
                 continue
             print("Host connected")
-            HOST_SOCK = conn
+            HOST_SOCK.append(conn)
             cnn.sendmsg(conn, "ready")
             threading.Thread(target=runHostThread).start()
         elif mode == "client":
