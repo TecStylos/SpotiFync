@@ -112,34 +112,37 @@ def runClient(spotify, sock):
 
         if cmd == "playback_info":
             play_state = cnn.recvmsg(sock)
-            if play_state == "is_paused":
-                spotify.pause_playback()
-                continue
-            elif play_state == "is_playing":
-                pass
-
-            hostURI = cnn.recvmsg(sock)
-            hostPositionMs = int(cnn.recvmsg(sock))
-            hostTimestamp = int(cnn.recvmsg(sock))
             
             current_playback = spotify.current_playback()
-            if current_playback is not None:
-                myURI = current_playback["item"]["uri"]
-                myPositionMs = current_playback["progress_ms"]
-                myTimestamp = current_playback["timestamp"]
-                predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
-                
-                if not current_playback["is_playing"]:
-                    print("Resuming playback...")
-                elif myURI != hostURI:
-                    print("Switching tracks...")
-                elif abs(myPositionMs - predictedPositionMs) > 3000:
-                    print("Time difference: " + str(myPositionMs - predictedPositionMs) + "ms")
-                    print("Seeking...")
-                else:
-                    continue
 
-                spotify.start_playback(uris=[hostURI], position_ms=predictedPositionMs)
+            if play_state == "is_paused":
+                
+                if current_playback is not None and current_playback["is_playing"]:
+                    spotify.pause_playback()
+
+            elif play_state == "is_playing":
+
+                hostURI = cnn.recvmsg(sock)
+                hostPositionMs = int(cnn.recvmsg(sock))
+                hostTimestamp = int(cnn.recvmsg(sock))
+
+                if current_playback is not None:
+                    myURI = current_playback["item"]["uri"]
+                    myPositionMs = current_playback["progress_ms"]
+                    myTimestamp = current_playback["timestamp"]
+                    predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
+
+                    if not current_playback["is_playing"]:
+                        print("Resuming playback...")
+                    elif myURI != hostURI:
+                        print("Switching tracks...")
+                    elif abs(myPositionMs - predictedPositionMs) > 3000:
+                        print("Time difference: " + str(myPositionMs - predictedPositionMs) + "ms")
+                        print("Seeking...")
+                    else:
+                        continue
+
+                    spotify.start_playback(uris=[hostURI], position_ms=predictedPositionMs)
         else:
             print("Invalid command")
 
