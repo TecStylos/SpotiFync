@@ -4,29 +4,34 @@ import threading
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 42069
 
+lock = threading.Lock()
 HOST_SOCK = []
 CLIENT_SOCKS = []
 
 def runHostThread():
-    sock = HOST_SOCK[0]
+    with lock:
+        host = HOST_SOCK[0]
+
     while True:
         try:
             print("Waiting for message... ")
-            msg = cnn.recvmsg(sock)
+            msg = cnn.recvmsg(host)
         except:
             print("Host disconnected")
             break
 
         print("Broadcasting message... ")
-        for sock in CLIENT_SOCKS:
-            try:
-                cnn.sendmsg(sock, msg)
-            except:
-                print("Client disconnected")
-                cnn.close(sock)
-                CLIENT_SOCKS.remove(sock)
+        with lock:
+            for client in CLIENT_SOCKS:
+                try:
+                    cnn.sendmsg(client, msg)
+                except:
+                    print("Client disconnected")
+                    cnn.close(client)
+                    CLIENT_SOCKS.remove(client)
 
-    HOST_SOCK.pop()
+    with lock:
+        HOST_SOCK.pop()
 
 if __name__ == "__main__":
     print("Starting server...")
@@ -41,18 +46,20 @@ if __name__ == "__main__":
         print("Waiting for connection mode...")
         mode = cnn.recvmsg(conn)
         if mode == "host":
-            if len(HOST_SOCK) > 0:
-                print("Duplicate host connected...")
-                cnn.sendmsg(conn, "nohostavail")
-                cnn.close(conn)
-                continue
-            print("Host connected")
-            HOST_SOCK.append(conn)
-            cnn.sendmsg(conn, "ready")
-            threading.Thread(target=runHostThread).start()
+            with lock:
+                if len(HOST_SOCK) > 0:
+                    print("Duplicate host connected...")
+                    cnn.sendmsg(conn, "nohostavail")
+                    cnn.close(conn)
+                    continue
+                print("Host connected")
+                HOST_SOCK.append(conn)
+                cnn.sendmsg(conn, "ready")
+                threading.Thread(target=runHostThread).start()
         elif mode == "client":
             print("Client connected")
-            CLIENT_SOCKS.append(conn)
+            with lock:
+                CLIENT_SOCKS.append(conn)
             cnn.sendmsg(conn, "ready")
         else:
             print("Invalid mode")

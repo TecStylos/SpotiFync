@@ -64,8 +64,11 @@ def runClient(spotify, sock):
             print("DONE")
 
             hostURI = cnn.recvmsg(sock)
+            print("Host URI:", hostURI)
             hostPositionMs = int(cnn.recvmsg(sock))
+            print("Host position:", hostPositionMs)
             hostTimestamp = int(cnn.recvmsg(sock))
+            print("Host timestamp:", hostTimestamp)
             
             current_playback = spotify.current_playback()
             if current_playback is not None:
