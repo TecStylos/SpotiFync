@@ -1,4 +1,4 @@
-from time import sleep
+import time
 import connection as cnn
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
@@ -17,9 +17,10 @@ SCOPES = (
 	"user-library-read"
 )
 
+def getCurrentTimestamp():
+    return time.time_ns() // 1000000
 
-
-def runHost(spotify, sock):
+def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
     cnn.sendmsg(sock, "host")
     if cnn.recvmsg(sock) != "ready":
         print("Something went wrong")
@@ -30,15 +31,40 @@ def runHost(spotify, sock):
         if current_playing is None:
             print("Nothing is playing")
         else:
-            print("Currently playing:", current_playing["item"]["name"])
+            URIs = [ current_playing["item"]["uri"] ]
+            positionMs = current_playing["progress_ms"]
+            timestamp = current_playing["timestamp"]
 
-        sleep(1)
+            cnn.sendmsg(sock, "playback_info")
+            cnn.sendmsg(sock, current_playing["item"]["uri"])
+            cnn.sendmsg(sock, str(current_playing["progress_ms"]))
+            cnn.sendmsg(sock, current_playing["timestamp"])
+
+        time.sleep(1)
 
 def runClient(spotify, sock):
     cnn.sendmsg(sock, "client")
     if cnn.recvmsg(sock) != "ready":
         print("Something went wrong")
         return
+
+    while True:
+        cmd = cnn.recvmsg(sock)
+        if cmd == "playback_info":
+            hostURI = cnn.recvmsg(sock)
+            hostPositionMs = int(cnn.recvmsg(sock))
+            hostTimestamp = int(cnn.recvmsg(sock))
+            
+            current_playback = spotify.current_playback()
+            if current_playback is not None:
+                myURI = current_playback["item"]["uri"]
+                myPositionMs = current_playback["progress_ms"]
+                myTimestamp = current_playback["timestamp"]
+                predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
+                if myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 1000:
+                    continue
+
+            spotify.start_playback(uris=[hostURI], position_ms=hostPositionMs + (getCurrentTimestamp() - hostTimestamp))
 
 if __name__ == "__main__":
     with open("clientID.txt", "r") as f:
