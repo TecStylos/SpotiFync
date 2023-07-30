@@ -4,7 +4,7 @@ import threading
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 42069
 
-HOST_SOCK = None
+HOST_SOCK
 CLIENT_SOCKS = []
 
 def runHostThread():
@@ -40,6 +40,7 @@ if __name__ == "__main__":
         print("Waiting for connection mode...")
         mode = cnn.recvmsg(conn)
         if mode == "host":
+            global HOST_SOCK
             if HOST_SOCK != None:
                 print("Duplicate host connected...")
                 cnn.sendmsg(conn, "nohostavail")
