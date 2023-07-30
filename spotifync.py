@@ -47,11 +47,11 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
         current_playing = spotify.current_playback()
         cnn.sendmsg(sock, "playback_info")
         if current_playing is None or not current_playing["is_playing"]:
-            cnn.sendmsg("is_paused")
+            cnn.sendmsg(sock, "is_paused")
         else:
             currentProgressMs = current_playing["progress_ms"]
 
-            cnn.sendmsg("is_playing")
+            cnn.sendmsg(sock, "is_playing")
             cnn.sendmsg(sock, current_playing["item"]["uri"])
             cnn.sendmsg(sock, str(current_playing["progress_ms"]))
             cnn.sendmsg(sock, str(current_playing["timestamp"]))
