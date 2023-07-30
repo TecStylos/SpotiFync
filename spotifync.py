@@ -22,9 +22,6 @@ SCOPES = (
 lock = threading.Lock()
 queue = queue.Queue()
 
-def getCurrentTimestamp():
-    return time.time_ns() // 1000000
-
 def runHostCommandReceiver(sock : cnn.socket):
     while True:
         cmd = cnn.recvmsg(sock)
@@ -58,6 +55,7 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
 
         with lock:
             if not queue.empty():
+                print("Received command")
                 cmd = queue.get()
             else:
                 cmd = None
@@ -76,6 +74,8 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
         elif cmd is not None and cmd.startswith("add "):
             uri = cmd[4:]
             spotify.add_to_queue(uri)
+        elif cmd is not None:
+            print("Invalid command")
 
         time.sleep(1)
 
@@ -132,13 +132,18 @@ def runClient(spotify, sock):
                 myPositionMs = current_playback["progress_ms"]
                 myTimestamp = current_playback["timestamp"]
                 predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
-                if playing and myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 3000:
+                if not playing:
+                    print("Resuming playback...")
+                    playing = True
+                elif myURI != hostURI:
+                    print("Switching tracks...")
+                elif abs(myPositionMs - predictedPositionMs) > 3000:
+                    print("Time difference: " + str(myPositionMs - predictedPositionMs) + "ms")
+                    print("Seeking...")
+                else:
                     continue
 
-                playing = True
-                print("Resyncing playback... ", end="")
                 spotify.start_playback(uris=[hostURI], position_ms=predictedPositionMs)
-                print("DONE")
         else:
             print("Invalid command")
 
