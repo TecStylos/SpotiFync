@@ -10,11 +10,13 @@ CLIENT_SOCKS = []
 def runHostThread():
     while True:
         try:
+            print("Waiting for message... ")
             msg = cnn.recvmsg(HOST_SOCK)
         except:
             print("Host disconnected")
             break
 
+        print("Broadcasting message... ")
         for sock in CLIENT_SOCKS:
             try:
                 cnn.sendmsg(sock, msg)

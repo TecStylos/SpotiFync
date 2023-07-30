@@ -21,6 +21,8 @@ def getCurrentTimestamp():
     return time.time_ns() // 1000000
 
 def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
+    print("Running in host mode...")
+
     cnn.sendmsg(sock, "host")
     if cnn.recvmsg(sock) != "ready":
         print("Something went wrong")
@@ -31,6 +33,8 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
         if current_playing is None:
             print("Nothing is playing")
         else:
+            print("Sending playback info... ", end="")
+
             URIs = [ current_playing["item"]["uri"] ]
             positionMs = current_playing["progress_ms"]
             timestamp = current_playing["timestamp"]
@@ -40,17 +44,25 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
             cnn.sendmsg(sock, str(current_playing["progress_ms"]))
             cnn.sendmsg(sock, str(current_playing["timestamp"]))
 
+            print("DONE")
+
         time.sleep(1)
 
 def runClient(spotify, sock):
+    print("Running in client mode...")
+
     cnn.sendmsg(sock, "client")
     if cnn.recvmsg(sock) != "ready":
         print("Something went wrong")
         return
 
     while True:
+        print("Waiting for playback info... ", end="")
+
         cmd = cnn.recvmsg(sock)
         if cmd == "playback_info":
+            print("DONE")
+
             hostURI = cnn.recvmsg(sock)
             hostPositionMs = int(cnn.recvmsg(sock))
             hostTimestamp = int(cnn.recvmsg(sock))
@@ -62,9 +74,14 @@ def runClient(spotify, sock):
                 myTimestamp = current_playback["timestamp"]
                 predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
                 if myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 1000:
+                    print("Already playing in sync")
                     continue
 
+            print("Resyncing playback... ", end="")
             spotify.start_playback(uris=[hostURI], position_ms=hostPositionMs + (getCurrentTimestamp() - hostTimestamp))
+            print("DONE")
+        else:
+            print("Invalid command")
 
 if __name__ == "__main__":
     with open("clientID.txt", "r") as f:
