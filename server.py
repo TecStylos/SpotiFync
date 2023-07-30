@@ -14,7 +14,6 @@ def runHostThread():
 
     while True:
         try:
-            print("Waiting for message... ")
             msg = cnn.recvmsg(host)
         except:
             print("Host disconnected")
@@ -32,6 +31,25 @@ def runHostThread():
 
     with lock:
         HOST_SOCK.pop()
+
+def runClientThread(sock : cnn.socket):
+    while True:
+        try:
+            msg = cnn.recvmsg(sock)
+        except:
+            print("Client disconnected")
+            break
+
+        print("Sending message to host... ")
+        with lock:
+            try:
+                cnn.sendmsg(HOST_SOCK[0], msg)
+            except:
+                print("Host disconnected")
+                cnn.close(HOST_SOCK[0])
+                HOST_SOCK.pop()
+                cnn.close(sock)
+                break
 
 if __name__ == "__main__":
     print("Starting server...")
@@ -57,10 +75,11 @@ if __name__ == "__main__":
                 cnn.sendmsg(conn, "ready")
                 threading.Thread(target=runHostThread).start()
         elif mode == "client":
-            print("Client connected")
             with lock:
+                print("Client connected")
                 CLIENT_SOCKS.append(conn)
-            cnn.sendmsg(conn, "ready")
+                cnn.sendmsg(conn, "ready")
+                threading.Thread(target=runClientThread, args=(conn,)).start()
         else:
             print("Invalid mode")
             cnn.close(conn)

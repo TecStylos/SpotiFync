@@ -2,6 +2,8 @@ import time
 import connection as cnn
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+import queue
+import threading
 
 SERVER_HOST = "tecstylos.ddns.net"
 SERVER_PORT = 42069
@@ -17,8 +19,17 @@ SCOPES = (
 	"user-library-read"
 )
 
+lock = threading.Lock()
+queue = queue.Queue()
+
 def getCurrentTimestamp():
     return time.time_ns() // 1000000
+
+def runHostCommandReceiver(sock : cnn.socket):
+    while True:
+        cmd = cnn.recvmsg(sock)
+        with lock:
+            queue.put(cmd)
 
 def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
     print("Running in host mode...")
@@ -28,25 +39,63 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
         print("Something went wrong")
         return
     
+    threading.Thread(target=runHostCommandReceiver, args=(sock,)).start()
+    
+    currentProgressMs = 0
+
     while True:
         current_playing = spotify.current_playback()
-        if current_playing is None:
-            print("Nothing is playing")
+        cnn.sendmsg(sock, "playback_info")
+        if current_playing is None or not current_playing["is_playing"]:
+            cnn.sendmsg("is_paused")
         else:
-            print("Sending playback info... ", end="")
+            currentProgressMs = current_playing["progress_ms"]
 
-            URIs = [ current_playing["item"]["uri"] ]
-            positionMs = current_playing["progress_ms"]
-            timestamp = current_playing["timestamp"]
-
-            cnn.sendmsg(sock, "playback_info")
+            cnn.sendmsg("is_playing")
             cnn.sendmsg(sock, current_playing["item"]["uri"])
             cnn.sendmsg(sock, str(current_playing["progress_ms"]))
             cnn.sendmsg(sock, str(current_playing["timestamp"]))
 
-            print("DONE")
+        with lock:
+            if not queue.empty():
+                cmd = queue.get()
+            else:
+                cmd = None
+
+        if cmd == "play":
+            spotify.start_playback()
+        elif cmd == "pause":
+            spotify.pause_playback()
+        elif cmd == "forward":
+            spotify.next_track()
+        elif cmd == "rewind":
+            if currentProgressMs < 10000:
+                spotify.previous_track()
+            else:
+                spotify.seek_track(0)
+        elif cmd.startswith("add "):
+            uri = cmd[4:]
+            spotify.add_to_queue(uri)
 
         time.sleep(1)
+
+def runClientCommandSender(sock : cnn.socket):
+    while True:
+        cmd = input("> ")
+        if cmd == "help":
+            print("Commands:")
+            print("  play")
+            print("  pause")
+            print("  forward")
+            print("  rewind")
+            print("  add <spotify uri>")
+            print("  help")
+            print("  exit")
+        elif cmd == "exit":
+            cnn.close(sock)
+            break
+        else:
+            cnn.sendmsg(sock, cmd)
 
 def runClient(spotify, sock):
     print("Running in client mode...")
@@ -55,13 +104,23 @@ def runClient(spotify, sock):
     if cnn.recvmsg(sock) != "ready":
         print("Something went wrong")
         return
+    
+    threading.Thread(target=runClientCommandSender, args=(sock,)).start()
 
     while True:
-        print("Waiting for playback info... ", end="")
-
         cmd = cnn.recvmsg(sock)
+
+        playing = False
+
         if cmd == "playback_info":
-            print("DONE")
+            play_state = cnn.recvmsg(sock)
+            if play_state == "is_paused":
+                if playing:
+                    spotify.pause_playback()
+                    playing = False
+                continue
+            elif play_state == "is_playing":
+                pass
 
             hostURI = cnn.recvmsg(sock)
             hostPositionMs = int(cnn.recvmsg(sock))
@@ -73,10 +132,10 @@ def runClient(spotify, sock):
                 myPositionMs = current_playback["progress_ms"]
                 myTimestamp = current_playback["timestamp"]
                 predictedPositionMs = hostPositionMs + (myTimestamp - hostTimestamp)
-                if myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 3000:
-                    print("Already playing in sync")
+                if playing and myURI == hostURI and abs(myPositionMs - predictedPositionMs) < 3000:
                     continue
 
+                playing = True
                 print("Resyncing playback... ", end="")
                 spotify.start_playback(uris=[hostURI], position_ms=predictedPositionMs)
                 print("DONE")
