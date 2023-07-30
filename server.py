@@ -40,17 +40,17 @@ if __name__ == "__main__":
         if mode == "host":
             if HOST_SOCK != None:
                 print("Duplicate host connected...")
-                cnn.sendmsg(sock, "nohostavail")
-                cnn.close(sock)
+                cnn.sendmsg(conn, "nohostavail")
+                cnn.close(conn)
                 continue
             print("Host connected")
             HOST_SOCK = conn
-            cnn.sendmsg(sock, "ready")
+            cnn.sendmsg(conn, "ready")
             threading.Thread(target=runHostThread).start()
         elif mode == "client":
             print("Client connected")
             CLIENT_SOCKS.append(conn)
-            cnn.sendmsg(sock, "ready")
+            cnn.sendmsg(conn, "ready")
         else:
             print("Invalid mode")
             cnn.close(conn)
