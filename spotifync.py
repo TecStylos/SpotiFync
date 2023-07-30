@@ -73,7 +73,7 @@ def runHost(spotify : spotipy.Spotify, sock : cnn.socket):
                 spotify.previous_track()
             else:
                 spotify.seek_track(0)
-        elif cmd.startswith("add "):
+        elif cmd is not None and cmd.startswith("add "):
             uri = cmd[4:]
             spotify.add_to_queue(uri)
 
